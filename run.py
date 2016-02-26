@@ -9,6 +9,7 @@ try:
     from gevent.pywsgi import WSGIServer
 except ImportError:
     print 'You need install gevent manually! System shutdown.'
+    sys.exit()
 
 from ghttp import GHTTPServer
 
