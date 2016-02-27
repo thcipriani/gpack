@@ -11,3 +11,9 @@ Python clone of [grack](https://github.com/schacon/grack)
 
 ## License
 See the LICENSE file for the full license text.
+
+## Usage
+
+```
+python2 run.py --path [git repo]
+```

@@ -1,3 +1,5 @@
+#!/usr/local/env python2
+
 import re
 import time
 import os
@@ -63,7 +65,7 @@ class GHTTPServer(object):
     def __init__(self, config=None):
         self.headers = {}
         self.set_config(config)
-        self.git = Git("/Users/xtao/gentoo/usr/bin/git")
+        self.git = Git(config.get('git_path', '/usr/bin/git'))
         self.RE_SERVICES = []
 
     def set_config(self, config):
@@ -293,17 +295,13 @@ class GHTTPServer(object):
         return setting == 'true'
 
     def get_git_dir(self, path):
-        root = self.get_project_root()
+        root = self.config.get('project_root', os.getcwd())
         path = join(root, path)
         if not self.is_subpath(path, root):
             return False
         if exists(path): # TODO: check is a valid git directory
             return path
         return False
-
-    def get_project_root(self):
-        root = self.config.get("project_root") or os.getcwd()
-        return root
 
     def is_subpath(self, path, checkpath):
         path = unquote(path)
