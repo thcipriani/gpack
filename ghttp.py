@@ -1,9 +1,11 @@
 #!/usr/local/env python2
 
-import re
-import time
+import gzip
 import os
+import re
 import select
+import StringIO
+import time
 from os import access
 from os.path import join, exists, getmtime, getsize
 from BaseHTTPServer import BaseHTTPRequestHandler as _
@@ -86,9 +88,9 @@ class GHTTPServer(object):
 
     def git_method(self, *args, **kwargs):
         if self.rpc == "upload-pack":
-            git_cmd = "upload_pack"
+            git_cmd = "upload-pack"
         else:
-            git_cmd = "receive_pack"
+            git_cmd = "receive-pack"
 
         return self.git.cmd_pack(git_cmd, *args, **kwargs)
 
@@ -227,6 +229,10 @@ class GHTTPServer(object):
     @property
     def read_body(self):
         input = self.env["wsgi.input"]
+        if self.env.get('HTTP_CONTENT_ENCODING') == 'gzip':
+            compressedstream = StringIO.StringIO(input.read())
+            gzipper = gzip.GzipFile(fileobj=compressedstream)
+            return gzipper.read()
         return input.read()
 
     # ------------------------------
@@ -318,7 +324,6 @@ class GHTTPServer(object):
             print '"%s" is not a subpath of "%s"' % (path, root)
             return False
         if exists(path):  # TODO: check is a valid git directory
-            print "git_dir = %s" % path
             return path
         else:
             print "%s does not exist" % path
