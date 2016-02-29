@@ -43,22 +43,10 @@ class Git(object):
                 result = None
             return result
 
-
-    def upload_pack(self, repository_path, opts=None, callback=None):
-        cmd = "upload-pack"
-        args = []
-        if not opts:
-            opts = {}
-        for k, v in opts.iteritems():
-            if k in self.command_options:
-                args.append(self.command_options.get(k))
-        args.append("--stateless-rpc")
-        args.append(repository_path)
-        opts["args"] = args
-        return self.command(cmd, opts, callback)
-
-    def receive_pack(self, repository_path, opts=None, callback=None):
-        cmd = "receive-pack"
+    def cmd_pack(self, cmd, repository_path, opts=None, callback=None):
+        valid_cmds = ('receive-pack', 'upload-pack')
+        if cmd not in valid_cmds:
+            raise ValueError('cmd must be one of: %s, %s' % valid_cmds)
         args = []
         if not opts:
             opts = {}

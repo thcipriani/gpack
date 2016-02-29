@@ -6,7 +6,6 @@ import os
 import select
 from os import access
 from os.path import join, exists, getmtime, getsize
-from urllib import unquote
 from BaseHTTPServer import BaseHTTPRequestHandler as _
 
 from libs.git import Git
@@ -22,13 +21,18 @@ def format_date_time(timestamp):
 def callback(p):
     ofd = p.stdout.fileno()
     efd = p.stderr.fileno()
-    while True:
-        r_ready, w_ready, x_ready = select.select([ofd, efd], [], [], 30)
+    p.stdin.flush()
+    timeout = 5
+
+    while timeout:
+        r_ready, w_ready, x_ready = select.select([ofd, efd], [], [], 1)
+        timeout -= 1
 
         if ofd in r_ready:
             data = os.read(ofd, 8192)
             if not data:
                 break
+            timeout += 1
             yield data
 
         if efd in r_ready:
@@ -48,18 +52,18 @@ class GHTTPServer(object):
     VALID_SERVICE_TYPES = ['upload-pack', 'receive-pack']
 
     SERVICES = [
-      ["POST", 'service_rpc',      re.compile("(.*?/?.*?)/git-upload-pack$"),  'upload-pack'],
-      ["POST", 'service_rpc',      re.compile("(.*?/?.*?)/git-receive-pack$"), 'receive-pack'],
+      ["POST", 'service_rpc',      re.compile("(.*?/?.*)/git-upload-pack$"),  'upload-pack'],
+      ["POST", 'service_rpc',      re.compile("(.*?/?.*)/git-receive-pack$"), 'receive-pack'],
 
-      ["GET",  'get_info_refs',    re.compile("(.*?/?.*?)/info/refs$")],
-      ["GET",  'get_text_file',    re.compile("(.*?/?.*?)/HEAD$")],
-      ["GET",  'get_text_file',    re.compile("(.*?/?.*?)/objects/info/alternates$")],
-      ["GET",  'get_text_file',    re.compile("(.*?/?.*?)/objects/info/http-alternates$")],
-      ["GET",  'get_info_packs',   re.compile("(.*?/?.*?)/objects/info/packs$")],
-      ["GET",  'get_text_file',    re.compile("(.*?/?.*?)/objects/info/[^/]*$")],
-      ["GET",  'get_loose_object', re.compile("(.*?/?.*?)/objects/[0-9a-f]{2}/[0-9a-f]{38}$")],
-      ["GET",  'get_pack_file',    re.compile("(.*?/?.*?)/objects/pack/pack-[0-9a-f]{40}\\.pack$")],
-      ["GET",  'get_idx_file',     re.compile("(.*?/?.*?)/objects/pack/pack-[0-9a-f]{40}\\.idx$")],
+      ["GET",  'get_info_refs',    re.compile("(.*?/?.*)/info/refs$")],
+      ["GET",  'get_text_file',    re.compile("(.*?/?.*)/HEAD$")],
+      ["GET",  'get_text_file',    re.compile("(.*?/?.*)/objects/info/alternates$")],
+      ["GET",  'get_text_file',    re.compile("(.*?/?.*)/objects/info/http-alternates$")],
+      ["GET",  'get_info_packs',   re.compile("(.*?/?.*)/objects/info/packs$")],
+      ["GET",  'get_text_file',    re.compile("(.*?/?.*)/objects/info/[^/]*$")],
+      ["GET",  'get_loose_object', re.compile("(.*?/?.*)/objects/[0-9a-f]{2}/[0-9a-f]{38}$")],
+      ["GET",  'get_pack_file',    re.compile("(.*?/?.*)/objects/pack/pack-[0-9a-f]{40}\\.pack$")],
+      ["GET",  'get_idx_file',     re.compile("(.*?/?.*)/objects/pack/pack-[0-9a-f]{40}\\.idx$")],
     ]
 
     def __init__(self, config=None):
@@ -86,8 +90,7 @@ class GHTTPServer(object):
         else:
             git_cmd = "receive_pack"
 
-        git_method = getattr(self.git, git_cmd)
-        return git_method(*args, **kwargs)
+        return self.git.cmd_pack(git_cmd, *args, **kwargs)
 
     def call(self):
         match = self.match_routing(self.env["PATH_INFO"].lstrip('/'),
@@ -315,6 +318,7 @@ class GHTTPServer(object):
             print '"%s" is not a subpath of "%s"' % (path, root)
             return False
         if exists(path):  # TODO: check is a valid git directory
+            print "git_dir = %s" % path
             return path
         else:
             print "%s does not exist" % path
